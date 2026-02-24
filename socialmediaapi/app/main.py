@@ -1,45 +1,41 @@
-from random import randrange
 
 from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.params import Body
-
-from data import my_posts
+from contextlib import asynccontextmanager
 from models import BasePost
-import json
 
 from psycopg import connect
 from dotenv import load_dotenv
-import os
 from psycopg.rows import dict_row, namedtuple_row
-import time
+
+from .database import SessionDep, engine
+from .databasemodels import Post
+
+from sqlmodel import SQLModel
+
 
 load_dotenv()
 
+# ----------------------------------------------- FastAPI starting------------------------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # This is the "on startup" part
+    print("Creating tables...")
+    SQLModel.metadata.create_all(engine)
+    yield
+
+    print("🛑 App is shutting down! Cleaning up resources...")
+
 # this is same like the documentation
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
-# path and route are basically same
-# path operation
-
-
-# variables
-DB_HOSTNAME = os.getenv('DB_HOSTNAME')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_USERNAME = os.getenv('DB_USERNAME')
-DB = os.getenv('DB')
-DB_PORT = os.getenv('DB_PORT')
 
 # --------------------------------------- Database connection ---------------------------------------------
-while(True):
-    try:
-        conn = connect(host=DB_HOSTNAME, dbname=DB, user=DB_USERNAME, password=DB_PASSWORD, row_factory=dict_row)
-        curr = conn.cursor(row_factory=namedtuple_row)
-        print(F"database connected successfully")
-        break
-    except Exception as e:
-        print(f"connection to database failed")
-        print(f"Error as {e}")
-        time.sleep(2)
+
+
+# creates all the necessary tables defined in the 
+
+
 
 # ------------------------------------- Getting all posts -------------------------------------------------
 @app.get("/posts")
@@ -83,17 +79,13 @@ async def get_post(post_id: int, response: Response):
 # ------------------------------------- Creating a post -------------------------------------------------
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 async def posts(
-    post: BasePost,
+    post: Post,session: SessionDep
 ):  # => body of the http request will be send to this parameter. This line will basically extract all the fields from the body and will convert it into python dictionary
 
-    INSERT_STATEMENT = "INSERT INTO posts (title, contents, published) VALUES (%s, %s, %s) RETURNING *"
-    VALUES = (post.title, post.content, post.published)
-
-    curr.execute(INSERT_STATEMENT, VALUES)
-    new_post = curr.fetchone()
-    conn.commit()
-
-    return {"data": new_post}  # automatically converts into json
+    session.add(post)
+    session.commit()
+    session.refresh(post)
+    return post
 
 
 # ------------------------------------- deleting a post -------------------------------------------------
