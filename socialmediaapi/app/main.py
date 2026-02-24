@@ -50,7 +50,9 @@ async def get_posts():  # name the functions as descriptive as possible.
     for row in rows:
         print(row)
     
-    return rows
+    return {
+        "data": rows
+    }
       # fast api will automatically convert the python dict to json
 
 
@@ -61,9 +63,13 @@ async def get_posts():  # name the functions as descriptive as possible.
 @app.get("/posts/{post_id}")
 async def get_post(post_id: int, response: Response):
 
-    for post in my_posts:
-        if post["id"] == post_id:
-            return {"data": post}
+
+    posts = curr.execute("SELECT * FROM posts where id = %s", (post_id,))
+    data = posts.fetchone()
+    print(data)
+    return {
+        "data": data
+    }
 
     # response.status_code = status.HTTP_404_NOT_FOUND
     # return {"message":f"post with {post_id} was not found"}
@@ -94,15 +100,23 @@ async def posts(
 @app.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(post_id: int):
 
-    for idx, post in enumerate(my_posts):
-        if post["id"] == post_id:
-            my_posts.pop(idx)
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
+    STATEMENT = "DELETE FROM posts WHERE id = %s RETURNING *"
+    id = post_id
+    curr.execute(STATEMENT, (id, ))
+    deleted_post = curr.fetchone()
+    conn.commit()
+    # data = curr.fetchone()
+    # print(data)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"post with id: {post_id} not found",
-    )
+    if(not deleted_post):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"post with id: {post_id} not found",
+        )
+    
+    return {
+        "data":deleted_post
+    }
 
 
 # hello
@@ -110,16 +124,23 @@ async def delete_post(post_id: int):
 @app.put("/posts/{post_id}", status_code=status.HTTP_201_CREATED)
 async def update_post(post_id: int, updated_post: BasePost):
 
-    for post in my_posts:
-        if post["id"] == post_id:
-            updated_post_dict = updated_post.model_dump()
-            post["title"] = updated_post_dict["title"]
-            post["content"] = updated_post_dict["content"]
-            post["rating"] = updated_post_dict["rating"]
-            post["published"] = updated_post_dict["published"]
-            return Response(status_code=status.HTTP_201_CREATED)
+    STATEMENT = """UPDATE posts SET title = %s,
+                    contents = %s,
+                    published = %s
+                    where id = %s
+                    RETURNING *
+                """
+    payload = (updated_post.title, updated_post.content, updated_post.published, post_id)
+    curr.execute(STATEMENT, payload)
+    data = curr.fetchone()
+    conn.commit()
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"post with id: {post_id} not found",
-    )
+    if(not data):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"post with id: {post_id} not found",
+        )
+
+    return {
+        "data":data
+    }
