@@ -8,8 +8,8 @@ from psycopg import connect
 from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
 
-from .database import SessionDep, engine
-from .databasemodels import Post
+from .database import SessionDep, engine, lifespan
+from .databasemodels import Posts
 
 from sqlmodel import SQLModel
 
@@ -17,25 +17,17 @@ from sqlmodel import SQLModel
 load_dotenv()
 
 # ----------------------------------------------- FastAPI starting------------------------------------------
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # This is the "on startup" part
-    print("Creating tables...")
-    SQLModel.metadata.create_all(engine)
-    yield
 
-    print("🛑 App is shutting down! Cleaning up resources...")
-
-# this is same like the documentation
 app = FastAPI(lifespan=lifespan)
 
 
-# --------------------------------------- Database connection ---------------------------------------------
-
-
-# creates all the necessary tables defined in the 
-
-
+# ----------------------------------------- Testing Database connection ----------------------------------
+@app.get("/sql")
+async def get_things(session: SessionDep):
+    print("hey.. bastard")
+    return {
+        "Status": "Success"
+    }
 
 # ------------------------------------- Getting all posts -------------------------------------------------
 @app.get("/posts")
@@ -79,7 +71,7 @@ async def get_post(post_id: int, response: Response):
 # ------------------------------------- Creating a post -------------------------------------------------
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 async def posts(
-    post: Post,session: SessionDep
+    post: Posts,session: SessionDep
 ):  # => body of the http request will be send to this parameter. This line will basically extract all the fields from the body and will convert it into python dictionary
 
     session.add(post)
