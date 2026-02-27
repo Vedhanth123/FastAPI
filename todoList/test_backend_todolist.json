@@ -1,9 +1,0 @@
-[
-    {
-        "todo_name": "string",
-        "todo_description": "Vedhanth",
-        "pri": 3,
-        "completed": true,
-        "todo_id": 2
-    }
-]
