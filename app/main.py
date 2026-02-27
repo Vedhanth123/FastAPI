@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.params import Body
 from psycopg import connect
 from psycopg.rows import dict_row, namedtuple_row
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, select
 
 from .database import SessionDep, engine, lifespan
 from .databasemodels import Posts
@@ -13,26 +13,16 @@ from .databasemodels import Posts
 load_dotenv()
 
 # ----------------------------------------------- FastAPI starting------------------------------------------
-
 app = FastAPI(lifespan=lifespan)
-
-
-# ----------------------------------------- Testing Database connection ----------------------------------
-@app.get("/sql")
-async def get_things(session: SessionDep):
-    print("hey.. bastard")
-    return {"Status": "Success"}
 
 
 # ------------------------------------- Getting all posts -------------------------------------------------
 @app.get("/posts")
-async def get_posts():  # name the functions as descriptive as possible.
+async def get_posts(
+    session: SessionDep,
+):  # name the functions as descriptive as possible.
 
-    posts = curr.execute("SELECT * FROM posts")
-    rows = posts.fetchall()
-    for row in rows:
-        print(row)
-
+    rows = session.exec(select(Posts)).all()
     return {"data": rows}
     # fast api will automatically convert the python dict to json
 
@@ -42,12 +32,11 @@ async def get_posts():  # name the functions as descriptive as possible.
 
 # ------------------------------------- Getting single post -------------------------------------------------
 @app.get("/posts/{post_id}")
-async def get_post(post_id: int, response: Response):
+async def get_post(post_id: int, response: Response, session: SessionDep):
 
-    posts = curr.execute("SELECT * FROM posts where id = %s", (post_id,))
-    data = posts.fetchone()
-    print(data)
-    return {"data": data}
+    rows = session.exec(select(Posts), post_id)
+    if rows:
+        return {"data": rows}
 
     # response.status_code = status.HTTP_404_NOT_FOUND
     # return {"message":f"post with {post_id} was not found"}
@@ -72,50 +61,38 @@ async def posts(
 
 # ------------------------------------- deleting a post -------------------------------------------------
 @app.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_post(post_id: int):
+async def delete_post(post_id: int, session: SessionDep):
 
-    STATEMENT = "DELETE FROM posts WHERE id = %s RETURNING *"
-    id = post_id
-    curr.execute(STATEMENT, (id,))
-    deleted_post = curr.fetchone()
-    conn.commit()
-    # data = curr.fetchone()
-    # print(data)
-
-    if not deleted_post:
+    post = session.get(Posts, post_id)
+    if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {post_id} not found",
         )
-
-    return {"data": deleted_post}
+    session.delete(post)
+    return {"data": post}
 
 
 # hello
 # ------------------------------------- updating a post -------------------------------------------------
 @app.put("/posts/{post_id}", status_code=status.HTTP_201_CREATED)
-async def update_post(post_id: int, updated_post: BasePost):
+async def update_post(post_id: int, session: SessionDep, updated_post: Posts):
 
-    STATEMENT = """UPDATE posts SET title = %s,
-                    contents = %s,
-                    published = %s
-                    where id = %s
-                    RETURNING *
-                """
-    payload = (
-        updated_post.title,
-        updated_post.content,
-        updated_post.published,
-        post_id,
-    )
-    curr.execute(STATEMENT, payload)
-    data = curr.fetchone()
-    conn.commit()
+    old_post = session.get(Posts, post_id)
 
-    if not data:
+    if not old_post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {post_id} not found",
         )
 
-    return {"data": data}
+    update_dict = updated_post.model_dump(exclude_unset=True)
+
+    # 3. Apply the updates to the database object
+    for key, value in update_dict.items():
+        setattr(old_post, key, value)
+
+    session.add(old_post)
+    session.commit()
+    session.refresh(old_post)
+    return old_post
