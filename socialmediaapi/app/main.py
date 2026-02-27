@@ -1,18 +1,14 @@
+from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.params import Body
-from contextlib import asynccontextmanager
-from models import BasePost
-
 from psycopg import connect
-from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
+from sqlmodel import SQLModel
 
 from .database import SessionDep, engine, lifespan
 from .databasemodels import Posts
-
-from sqlmodel import SQLModel
-
 
 load_dotenv()
 
@@ -25,9 +21,8 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/sql")
 async def get_things(session: SessionDep):
     print("hey.. bastard")
-    return {
-        "Status": "Success"
-    }
+    return {"Status": "Success"}
+
 
 # ------------------------------------- Getting all posts -------------------------------------------------
 @app.get("/posts")
@@ -37,11 +32,9 @@ async def get_posts():  # name the functions as descriptive as possible.
     rows = posts.fetchall()
     for row in rows:
         print(row)
-    
-    return {
-        "data": rows
-    }
-      # fast api will automatically convert the python dict to json
+
+    return {"data": rows}
+    # fast api will automatically convert the python dict to json
 
 
 # If there are more than 1 functions to the same path then fastpi will give preference to the first path
@@ -51,13 +44,10 @@ async def get_posts():  # name the functions as descriptive as possible.
 @app.get("/posts/{post_id}")
 async def get_post(post_id: int, response: Response):
 
-
     posts = curr.execute("SELECT * FROM posts where id = %s", (post_id,))
     data = posts.fetchone()
     print(data)
-    return {
-        "data": data
-    }
+    return {"data": data}
 
     # response.status_code = status.HTTP_404_NOT_FOUND
     # return {"message":f"post with {post_id} was not found"}
@@ -71,7 +61,7 @@ async def get_post(post_id: int, response: Response):
 # ------------------------------------- Creating a post -------------------------------------------------
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 async def posts(
-    post: Posts,session: SessionDep
+    post: Posts, session: SessionDep
 ):  # => body of the http request will be send to this parameter. This line will basically extract all the fields from the body and will convert it into python dictionary
 
     session.add(post)
@@ -86,21 +76,19 @@ async def delete_post(post_id: int):
 
     STATEMENT = "DELETE FROM posts WHERE id = %s RETURNING *"
     id = post_id
-    curr.execute(STATEMENT, (id, ))
+    curr.execute(STATEMENT, (id,))
     deleted_post = curr.fetchone()
     conn.commit()
     # data = curr.fetchone()
     # print(data)
 
-    if(not deleted_post):
+    if not deleted_post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {post_id} not found",
         )
-    
-    return {
-        "data":deleted_post
-    }
+
+    return {"data": deleted_post}
 
 
 # hello
@@ -114,17 +102,20 @@ async def update_post(post_id: int, updated_post: BasePost):
                     where id = %s
                     RETURNING *
                 """
-    payload = (updated_post.title, updated_post.content, updated_post.published, post_id)
+    payload = (
+        updated_post.title,
+        updated_post.content,
+        updated_post.published,
+        post_id,
+    )
     curr.execute(STATEMENT, payload)
     data = curr.fetchone()
     conn.commit()
 
-    if(not data):
+    if not data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {post_id} not found",
         )
 
-    return {
-        "data":data
-    }
+    return {"data": data}

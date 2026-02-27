@@ -1,12 +1,10 @@
-from typing import Annotated
-
-from fastapi import Depends, FastAPI, HTTPException, Query
-from sqlmodel import Field, Session, SQLModel, create_engine, select
-
-from dotenv import load_dotenv
-
 import os
 from contextlib import asynccontextmanager
+from typing import Annotated
+
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI
+from sqlmodel import Session, SQLModel, create_engine
 
 load_dotenv()
 
@@ -23,8 +21,6 @@ def get_session():
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
-
-# Code below omitted 👇
 
 
 @asynccontextmanager
