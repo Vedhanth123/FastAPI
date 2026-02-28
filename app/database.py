@@ -26,6 +26,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This is the "on startup" part
+    print("🟢 App is Starting Up!")
     print("Creating tables...")
     SQLModel.metadata.create_all(engine)
     yield

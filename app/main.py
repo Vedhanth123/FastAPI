@@ -1,14 +1,11 @@
-from contextlib import asynccontextmanager
+from typing import List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, status
-from fastapi.params import Body
-from psycopg import connect
-from psycopg.rows import dict_row, namedtuple_row
 from sqlmodel import SQLModel, select
 
 from .database import SessionDep, engine, lifespan
-from .databasemodels import Posts
+from .models import CreatePosts, PostResponse, Posts, UpdatePosts
 
 load_dotenv()
 
@@ -17,13 +14,13 @@ app = FastAPI(lifespan=lifespan)
 
 
 # ------------------------------------- Getting all posts -------------------------------------------------
-@app.get("/posts")
+@app.get("/posts", response_model=List[PostResponse])
 async def get_posts(
-    session: SessionDep,
+    session: SessionDep, response_model=PostResponse
 ):  # name the functions as descriptive as possible.
 
     rows = session.exec(select(Posts)).all()
-    return {"data": rows}
+    return rows
     # fast api will automatically convert the python dict to json
 
 
@@ -31,12 +28,12 @@ async def get_posts(
 
 
 # ------------------------------------- Getting single post -------------------------------------------------
-@app.get("/posts/{post_id}")
-async def get_post(post_id: int, response: Response, session: SessionDep):
+@app.get("/posts/{post_id}", response_model=PostResponse)
+async def get_post(post_id: int, session: SessionDep):
 
-    rows = session.exec(select(Posts), post_id)
+    rows = session.get(Posts, post_id)
     if rows:
-        return {"data": rows}
+        return rows
 
     # response.status_code = status.HTTP_404_NOT_FOUND
     # return {"message":f"post with {post_id} was not found"}
@@ -48,11 +45,13 @@ async def get_post(post_id: int, response: Response, session: SessionDep):
 
 
 # ------------------------------------- Creating a post -------------------------------------------------
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
+@app.post("/posts", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 async def posts(
-    post: Posts, session: SessionDep
+    post: CreatePosts, session: SessionDep
 ):  # => body of the http request will be send to this parameter. This line will basically extract all the fields from the body and will convert it into python dictionary
 
+    # we need to convert from CreatePost object to Post object
+    post = Posts.model_validate(post)
     session.add(post)
     session.commit()
     session.refresh(post)
@@ -60,8 +59,11 @@ async def posts(
 
 
 # ------------------------------------- deleting a post -------------------------------------------------
-@app.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_post(post_id: int, session: SessionDep):
+@app.delete(
+    "/posts/{post_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_post(post_id: int, session: SessionDep, response_model=PostResponse):
 
     post = session.get(Posts, post_id)
     if not post:
@@ -70,13 +72,16 @@ async def delete_post(post_id: int, session: SessionDep):
             detail=f"post with id: {post_id} not found",
         )
     session.delete(post)
-    return {"data": post}
+    session.commit()
+    return post
 
 
 # hello
 # ------------------------------------- updating a post -------------------------------------------------
-@app.put("/posts/{post_id}", status_code=status.HTTP_201_CREATED)
-async def update_post(post_id: int, session: SessionDep, updated_post: Posts):
+@app.put(
+    "/posts/{post_id}", status_code=status.HTTP_201_CREATED, response_model=PostResponse
+)
+async def update_post(post_id: int, session: SessionDep, updated_post: UpdatePosts):
 
     old_post = session.get(Posts, post_id)
 
@@ -86,7 +91,9 @@ async def update_post(post_id: int, session: SessionDep, updated_post: Posts):
             detail=f"post with id: {post_id} not found",
         )
 
-    update_dict = updated_post.model_dump(exclude_unset=True)
+    update_dict = updated_post.model_dump(
+        exclude_unset=True
+    )  # exclude_unset=True is what is allowing me to do Patch update not just put update.
 
     # 3. Apply the updates to the database object
     for key, value in update_dict.items():
