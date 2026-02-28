@@ -5,12 +5,25 @@ from fastapi import FastAPI, HTTPException, Response, status
 from sqlmodel import SQLModel, select
 
 from .database import SessionDep, engine, lifespan
-from .models import CreatePosts, PostResponse, Posts, UpdatePosts
+from .models import (
+    CreatePosts,
+    CreateUser,
+    PostResponse,
+    Posts,
+    UpdatePosts,
+    UserResponse,
+    Users,
+)
 
 load_dotenv()
 
 # ----------------------------------------------- FastAPI starting------------------------------------------
 app = FastAPI(lifespan=lifespan)
+
+
+# ----------------------------------------------------------------------------------------------
+#                                         POSTS
+# ----------------------------------------------------------------------------------------------
 
 
 # ------------------------------------- Getting all posts -------------------------------------------------
@@ -103,3 +116,29 @@ async def update_post(post_id: int, session: SessionDep, updated_post: UpdatePos
     session.commit()
     session.refresh(old_post)
     return old_post
+
+
+# ----------------------------------------------------------------------------------------------
+#                                         Users
+# ----------------------------------------------------------------------------------------------
+
+
+@app.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
+def create_user(user: CreateUser, session: SessionDep):
+    
+    statement = select(Users).where(Users.email == user.email)
+    data = session.exec(statement).first()
+
+    if data:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{user.email} already exists!",
+        )
+
+    user = Users.model_validate(user)
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
