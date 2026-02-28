@@ -2,7 +2,10 @@ from typing import List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, status
+from passlib.context import CryptContext
+from pydantic import deprecated
 from sqlmodel import SQLModel, select
+import bcrypt
 
 from .database import SessionDep, engine, lifespan
 from .models import (
@@ -16,6 +19,10 @@ from .models import (
 )
 
 load_dotenv()
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 # ----------------------------------------------- FastAPI starting------------------------------------------
 app = FastAPI(lifespan=lifespan)
@@ -125,7 +132,9 @@ async def update_post(post_id: int, session: SessionDep, updated_post: UpdatePos
 
 @app.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
 def create_user(user: CreateUser, session: SessionDep):
-    
+
+    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+    user.password = hashed_password
     statement = select(Users).where(Users.email == user.email)
     data = session.exec(statement).first()
 
@@ -141,4 +150,3 @@ def create_user(user: CreateUser, session: SessionDep):
     session.commit()
     session.refresh(user)
     return user
-
