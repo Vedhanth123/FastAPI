@@ -5,7 +5,9 @@ from fastapi import FastAPI, HTTPException, Response, status
 from passlib.context import CryptContext
 from pydantic import deprecated
 from sqlmodel import SQLModel, select
-import bcrypt
+from starlette.status import HTTP_404_NOT_FOUND
+
+from utils import hash_password
 
 from .database import SessionDep, engine, lifespan
 from .models import (
@@ -130,10 +132,13 @@ async def update_post(post_id: int, session: SessionDep, updated_post: UpdatePos
 # ----------------------------------------------------------------------------------------------
 
 
+# ------------------------------------- Create User ---------------------------------------------
+
+
 @app.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
 def create_user(user: CreateUser, session: SessionDep):
 
-    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+    hashed_password = hash_password(user.password.encode("utf-8"))
     user.password = hashed_password
     statement = select(Users).where(Users.email == user.email)
     data = session.exec(statement).first()
@@ -149,4 +154,18 @@ def create_user(user: CreateUser, session: SessionDep):
     session.add(user)
     session.commit()
     session.refresh(user)
+    return user
+
+
+# ------------------------------------- Get User ---------------------------------------------
+@app.get("/user/{user_id}", response_model=UserResponse)
+def get_user(user_id: int, session: SessionDep):
+
+    user = session.get(Users, user_id)
+
+    if not user:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail=f"user id {user_id} does not exist"
+        )
+
     return user
