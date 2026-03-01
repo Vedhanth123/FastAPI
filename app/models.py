@@ -6,6 +6,7 @@ from unittest.mock import Base
 
 from click import Option, password_option
 from psycopg import Timestamp
+from pydantic import EmailStr
 from sqlalchemy import false
 from sqlmodel import Column, DateTime, Field, SQLModel, func
 
@@ -43,14 +44,14 @@ class PostResponse(BasePosts):
 
 # ----------------------------------------- Users Table --------------------------------------------------
 class BaseUsers(SQLModel):
-    email: str
+    email: EmailStr
     name: str
     password: str
 
 
 class Users(BaseUsers, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    email: str = Field(unique=True)
+    email: EmailStr = Field(unique=True)
     password: str = Field(min_length=8)
     created_at: Optional[datetime] = Field(
         default=None,
@@ -66,5 +67,10 @@ class CreateUser(BaseUsers):
 
 class UserResponse(SQLModel):
     id: int
-    email: str
+    email: EmailStr
     name: str
+
+
+class UserLogin(SQLModel):
+    email: EmailStr
+    password: str
