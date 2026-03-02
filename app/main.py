@@ -6,6 +6,7 @@ from passlib.context import CryptContext
 from sqlmodel import select
 from starlette.status import HTTP_404_NOT_FOUND
 
+from app.routers import auth, post, user
 from app.utils import hash_password
 
 from .database import SessionDep, lifespan
@@ -18,7 +19,6 @@ from .models import (
     UserResponse,
     Users,
 )
-from .routers import post, user
 
 load_dotenv()
 
@@ -27,3 +27,4 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(post.router)
 app.include_router(user.router)
+app.include_router(auth.router)
