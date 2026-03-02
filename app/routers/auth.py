@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from starlette.status import (
+    HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
+    HTTP_404_NOT_FOUND,
+)
 
 from app.database import SessionDep
 from app.models import UserLogin, Users
@@ -17,7 +21,6 @@ def login(
     credentials: OAuth2PasswordRequestForm = Depends(),
 ):
 
-    
     Statement = select(Users).where(Users.email == credentials.username)
     data = session.exec(Statement).first()
 
@@ -34,6 +37,6 @@ def login(
         return {"access_token": access_token, "token_type": "bearer"}
     else:
         raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
+            status_code=HTTP_403_FORBIDDEN,
             detail=f"Invalid credentials for {credentials.email}",
         )

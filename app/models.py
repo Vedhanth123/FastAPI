@@ -74,3 +74,13 @@ class UserResponse(SQLModel):
 class UserLogin(SQLModel):
     email: EmailStr
     password: str
+
+
+# ---------------------------------------------- Access token -------------------------------------------
+class Token(SQLModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(SQLModel):
+    id: Optional[str] = None

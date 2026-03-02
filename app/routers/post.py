@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, FastAPI, HTTPException, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
 from sqlmodel import select
 
 from app.database import SessionDep
@@ -10,12 +10,13 @@ from app.models import (
     Posts,
     UpdatePosts,
 )
+from app.oauth2 import get_current_user
 
 # ----------------------------------------------------------------------------------------------
 #                                         POSTS
 # ----------------------------------------------------------------------------------------------
 
-router = APIRouter(prefix="/posts", tags=['Posts'])
+router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
 # ------------------------------------- Getting all posts -------------------------------------------------
@@ -52,9 +53,12 @@ async def get_post(post_id: int, session: SessionDep):
 # ------------------------------------- Creating a post -------------------------------------------------
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 async def posts(
-    post: CreatePosts, session: SessionDep
+    post: CreatePosts,
+    session: SessionDep,
+    user_id: str = Depends(get_current_user),
 ):  # => body of the http request will be send to this parameter. This line will basically extract all the fields from the body and will convert it into python dictionary
 
+    print(user_id)
     # we need to convert from CreatePost object to Post object
     post = Posts.model_validate(post)
     session.add(post)
