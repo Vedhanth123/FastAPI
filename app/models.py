@@ -1,13 +1,8 @@
-from datetime import datetime, time
-from token import OP
-from types import NoneType
+from datetime import datetime
 from typing import Optional
-from unittest.mock import Base
 
-from click import Option, password_option
-from psycopg import Timestamp
 from pydantic import EmailStr
-from sqlalchemy import ForeignKey, Integer, false
+from sqlalchemy import ForeignKey, Integer
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel, func
 
 
@@ -80,6 +75,7 @@ class UpdatePosts(BasePosts):
 
 
 class PostResponse(BasePosts):
+    id: int
     user_id: int
     user: UserResponse
 

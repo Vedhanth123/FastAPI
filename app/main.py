@@ -1,24 +1,9 @@
-from typing import List
-
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, status
-from passlib.context import CryptContext
-from sqlmodel import select
-from starlette.status import HTTP_404_NOT_FOUND
+from fastapi import FastAPI
 
 from app.routers import auth, post, user
-from app.utils import hash_password
 
-from .database import SessionDep, lifespan
-from .models import (
-    CreatePosts,
-    CreateUser,
-    PostResponse,
-    Posts,
-    UpdatePosts,
-    UserResponse,
-    Users,
-)
+from app.database import lifespan
 
 load_dotenv()
 

@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import select
 
 from app.database import SessionDep
@@ -9,7 +9,6 @@ from app.models import (
     PostResponse,
     Posts,
     UpdatePosts,
-    Users,
 )
 from app.oauth2 import get_current_user
 
@@ -23,10 +22,16 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 # ------------------------------------- Getting all posts -------------------------------------------------
 @router.get("/", response_model=List[PostResponse])
 async def get_posts(
-    session: SessionDep, response_model=PostResponse
-):  # name the functions as descriptive as possible.
+    session: SessionDep,
+    response_model=PostResponse,
+    limit: int = 10,
+    skip: int = 0,
+    search: Optional[str] = "",
+):  # name the functions as descriptive as possible.         # query parameter
 
-    rows = session.exec(select(Posts)).all()
+    rows = session.exec(
+        select(Posts).filter(Posts.title.contains(search)).limit(limit).offset(skip)
+    ).all()
     return rows
     # fast api will automatically convert the python dict to json
 
@@ -35,7 +40,7 @@ async def get_posts(
 
 
 # ------------------------------------- Getting single post -------------------------------------------------
-@router.get("/{post_id}", response_model=PostResponse)
+@router.get("/{post_id}", response_model=PostResponse)  # path operation
 async def get_post(post_id: int, session: SessionDep):
 
     rows = session.get(Posts, post_id)

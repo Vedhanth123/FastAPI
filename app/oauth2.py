@@ -4,13 +4,11 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jwt.algorithms import Algorithm
-from jwt.exceptions import InvalidTokenError
+from fastapi.security import OAuth2PasswordBearer
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from app.database import SessionDep
-from app.models import TokenData, Users
+from app.models import Users
 
 load_dotenv()
 
@@ -51,7 +49,7 @@ def get_current_user(session: SessionDep, token: str = Depends(oauth2_scheme)):
 
     credentials_exception = HTTPException(
         status_code=HTTP_401_UNAUTHORIZED,
-        detail=f"Could not validate exceptions",
+        detail="Could not validate exceptions",
         headers={"WWW-Authenticate": "Bearer"},
     )
 

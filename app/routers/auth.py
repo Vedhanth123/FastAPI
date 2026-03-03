@@ -2,13 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 from starlette.status import (
-    HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
 
 from app.database import SessionDep
-from app.models import Token, UserLogin, Users
+from app.models import Token, Users
 from app.oauth2 import create_access_token
 from app.utils import verify_password
 
