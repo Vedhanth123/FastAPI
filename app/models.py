@@ -8,43 +8,7 @@ from click import Option, password_option
 from psycopg import Timestamp
 from pydantic import EmailStr
 from sqlalchemy import ForeignKey, Integer, false
-from sqlmodel import Column, DateTime, Field, SQLModel, func
-
-
-# ----------------------------------------- Posts Table --------------------------------------------------
-class BasePosts(SQLModel):
-    title: str
-    contents: str
-    published: bool = False
-
-
-class Posts(BasePosts, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: Optional[datetime] = Field(
-        default=None,
-        sa_column=Column(
-            DateTime(timezone=True), nullable=False, server_default=func.now()
-        ),
-    )
-    user_id: int = Field(
-        sa_column=Column(
-            Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-        )
-    )
-
-
-class CreatePosts(BasePosts):
-    pass
-
-
-class UpdatePosts(BasePosts):
-    title: Optional[str] = None
-    contents: Optional[str] = None
-    published: Optional[bool] = None
-
-
-class PostResponse(BasePosts):
-    user_id: int
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel, func
 
 
 # ----------------------------------------- Users Table --------------------------------------------------
@@ -79,6 +43,45 @@ class UserResponse(SQLModel):
 class UserLogin(SQLModel):
     email: EmailStr
     password: str
+
+
+# ----------------------------------------- Posts Table --------------------------------------------------
+class BasePosts(SQLModel):
+    title: str
+    contents: str
+    published: bool = False
+
+
+class Posts(BasePosts, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=func.now()
+        ),
+    )
+    user_id: int = Field(
+        sa_column=Column(
+            Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+
+    user: "Users" = Relationship()
+
+
+class CreatePosts(BasePosts):
+    pass
+
+
+class UpdatePosts(BasePosts):
+    title: Optional[str] = None
+    contents: Optional[str] = None
+    published: Optional[bool] = None
+
+
+class PostResponse(BasePosts):
+    user_id: int
+    user: UserResponse
 
 
 # ---------------------------------------------- Access token -------------------------------------------
