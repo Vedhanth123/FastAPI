@@ -8,14 +8,14 @@ from starlette.status import (
 )
 
 from app.database import SessionDep
-from app.models import UserLogin, Users
+from app.models import Token, UserLogin, Users
 from app.oauth2 import create_access_token
 from app.utils import verify_password
 
 router = APIRouter(tags=["Authentication"])
 
 
-@router.post("/login")
+@router.post("/login", response_model=Token)
 def login(
     session: SessionDep,
     credentials: OAuth2PasswordRequestForm = Depends(),

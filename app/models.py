@@ -7,7 +7,7 @@ from unittest.mock import Base
 from click import Option, password_option
 from psycopg import Timestamp
 from pydantic import EmailStr
-from sqlalchemy import false
+from sqlalchemy import ForeignKey, Integer, false
 from sqlmodel import Column, DateTime, Field, SQLModel, func
 
 
@@ -26,6 +26,11 @@ class Posts(BasePosts, table=True):
             DateTime(timezone=True), nullable=False, server_default=func.now()
         ),
     )
+    user_id: int = Field(
+        sa_column=Column(
+            Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        )
+    )
 
 
 class CreatePosts(BasePosts):
@@ -39,7 +44,7 @@ class UpdatePosts(BasePosts):
 
 
 class PostResponse(BasePosts):
-    pass
+    user_id: int
 
 
 # ----------------------------------------- Users Table --------------------------------------------------

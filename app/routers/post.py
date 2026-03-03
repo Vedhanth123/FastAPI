@@ -9,6 +9,7 @@ from app.models import (
     PostResponse,
     Posts,
     UpdatePosts,
+    Users,
 )
 from app.oauth2 import get_current_user
 
@@ -55,10 +56,12 @@ async def get_post(post_id: int, session: SessionDep):
 async def posts(
     post: CreatePosts,
     session: SessionDep,
-    user_id: str = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):  # => body of the http request will be send to this parameter. This line will basically extract all the fields from the body and will convert it into python dictionary
 
-    print(user_id)
+    print(current_user)
+    post = post.model_dump()
+    post.update({"user_id": current_user.id})
     # we need to convert from CreatePost object to Post object
     post = Posts.model_validate(post)
     session.add(post)
@@ -72,13 +75,23 @@ async def posts(
     "/{post_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def delete_post(post_id: int, session: SessionDep, response_model=PostResponse):
+async def delete_post(
+    post_id: int,
+    session: SessionDep,
+    response_model=PostResponse,
+    current_user: dict = Depends(get_current_user),
+):
 
     post = session.get(Posts, post_id)
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {post_id} not found",
+        )
+    if current_user.id != post.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"user id {post.user_id} cannot delete the post",
         )
     session.delete(post)
     session.commit()
@@ -90,7 +103,12 @@ async def delete_post(post_id: int, session: SessionDep, response_model=PostResp
 @router.put(
     "/{post_id}", status_code=status.HTTP_201_CREATED, response_model=PostResponse
 )
-async def update_post(post_id: int, session: SessionDep, updated_post: UpdatePosts):
+async def update_post(
+    post_id: int,
+    session: SessionDep,
+    updated_post: UpdatePosts,
+    current_user: dict = Depends(get_current_user),
+):
 
     old_post = session.get(Posts, post_id)
 
@@ -98,6 +116,12 @@ async def update_post(post_id: int, session: SessionDep, updated_post: UpdatePos
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id: {post_id} not found",
+        )
+
+    if current_user.id != old_post.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"user id {old_post.user_id} cannot delete the post",
         )
 
     update_dict = updated_post.model_dump(
