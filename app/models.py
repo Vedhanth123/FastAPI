@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import EmailStr
+from pydantic import EmailStr, conint
 from sqlalchemy import ForeignKey, Integer
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel, func
 
@@ -80,7 +80,7 @@ class PostResponse(BasePosts):
     user: UserResponse
 
 
-# ---------------------------------------------- Access token -------------------------------------------
+# ---------------------------------------------- Access token schema -------------------------------------------
 class Token(SQLModel):
     access_token: str
     token_type: str
@@ -88,3 +88,22 @@ class Token(SQLModel):
 
 class TokenData(SQLModel):
     id: Optional[str] = None
+
+
+# ---------------------------------------------- Votes table ------------------------------------------------
+class Votes(SQLModel, table=True):
+    user_id: int = Field(
+        sa_column=Column(
+            Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+        ),
+    )
+    post_id: int = Field(
+        sa_column=Column(
+            Integer, ForeignKey("posts.id", ondelete="CASCADE"), primary_key=True
+        ),
+    )
+
+
+class VoteRequest(SQLModel):
+    post_id: int
+    liked: conint(le=1)
