@@ -107,3 +107,9 @@ class Votes(SQLModel, table=True):
 class VoteRequest(SQLModel):
     post_id: int
     liked: conint(le=1)
+
+
+# Create a schema for the combined data
+class PostWithVotes(SQLModel):
+    Posts: PostResponse  # This matches the SQLModel class name in the tuple
+    votes: int

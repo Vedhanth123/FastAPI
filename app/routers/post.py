@@ -1,14 +1,19 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel import select
 
 from app.database import SessionDep
 from app.models import (
     CreatePosts,
     PostResponse,
+    PostWithVotes,
     Posts,
     UpdatePosts,
+    Users,
+    Votes,
 )
 from app.oauth2 import get_current_user
 
@@ -20,19 +25,28 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
 # ------------------------------------- Getting all posts -------------------------------------------------
-@router.get("/", response_model=List[PostResponse])
+# @router.get("/", response_model=List[PostResponse])
+@router.get("/", response_model=List[PostWithVotes])
 async def get_posts(
     session: SessionDep,
-    response_model=PostResponse,
     limit: int = 10,
     skip: int = 0,
     search: Optional[str] = "",
 ):  # name the functions as descriptive as possible.         # query parameter
 
-    rows = session.exec(
-        select(Posts).filter(Posts.title.contains(search)).limit(limit).offset(skip)
+    result = session.exec(
+        select(Posts, func.count(Votes.post_id).label("votes"))
+        .join(Votes, Posts.id == Votes.post_id, isouter=True)
+        .group_by(Posts.id)
+        .filter(Posts.title.contains(search))
+        .limit(limit)
+        .offset(skip)
+        # .options(selectinload(Posts.user)) # This is given by gemini. I have to understand it...
     ).all()
-    return rows
+
+    return result
+
+    # return result
     # fast api will automatically convert the python dict to json
 
 
@@ -40,13 +54,19 @@ async def get_posts(
 
 
 # ------------------------------------- Getting single post -------------------------------------------------
-@router.get("/{post_id}", response_model=PostResponse)  # path operation
+@router.get("/{post_id}", response_model=PostWithVotes)  # path operation
 async def get_post(post_id: int, session: SessionDep):
 
-    rows = session.get(Posts, post_id)
+    rows = session.exec(
+        select(Posts, func.count(Votes.post_id).label("votes"))
+        .join(Votes, Posts.id == Votes.post_id, isouter=True)
+        .group_by(Posts.id)
+        .filter(Posts.id == post_id)
+    ).first()
     if rows:
         return rows
 
+    print(rows)
     # response.status_code = status.HTTP_404_NOT_FOUND
     # return {"message":f"post with {post_id} was not found"}
 
